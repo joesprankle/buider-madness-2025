@@ -50,6 +50,10 @@ def lambda_handler(event, context):
         content_type = body.get('contentType', 'image/jpeg')
         logger.info(f"Processing image with filename: {filename}, content_type: {content_type}")
         
+        # Get vehicle information
+        vehicle_info = body.get('vehicleInfo', {})
+        logger.info(f"Vehicle information received: {vehicle_info}")
+        
         # Remove data URL prefix if present (e.g., data:image/jpeg;base64,)
         try:
             if ',' in base64_image:
@@ -74,14 +78,25 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Invalid base64 encoding'})
             }
         
-        # Upload to S3 WITHOUT ACL parameter
+        # Upload to S3 
         try:
+            # Add vehicle info as metadata if provided
+            metadata = {}
+            if vehicle_info:
+                if 'brand' in vehicle_info and vehicle_info['brand']:
+                    metadata['brand'] = vehicle_info['brand']
+                if 'model' in vehicle_info and vehicle_info['model']:
+                    metadata['model'] = vehicle_info['model']
+                if 'year' in vehicle_info and vehicle_info['year']:
+                    metadata['year'] = vehicle_info['year']
+            
             response = s3.put_object(
                 Bucket=bucket_name,
                 Key=filename,
                 Body=image_data,
                 ContentType=content_type,
-                ContentDisposition='inline'
+                ContentDisposition='inline',
+                Metadata=metadata
                 # Removed ACL='public-read' parameter
             )
             logger.info(f"S3 upload successful: {response}")
@@ -108,8 +123,8 @@ def lambda_handler(event, context):
                     {"S": "P987654"},
                     {"S": "P654321"}
                 ],
-                "car_make": "Toyota",
-                "car_model_year_part": "Camry#2021#Brake Pad",
+                "car_make": vehicle_info.get('brand', 'Toyota'),
+                "car_model_year_part": f"{vehicle_info.get('model', 'Camry')}#{vehicle_info.get('year', '2021')}#Brake Pad",
                 "category": "Brakes",
                 "location": "Aisle 3, Shelf B",
                 "part_name": "Brake Pad",
@@ -122,8 +137,8 @@ def lambda_handler(event, context):
                     {"S": "P876543"},
                     {"S": "P765432"}
                 ],
-                "car_make": "Honda",
-                "car_model_year_part": "Civic#2022#Oil Filter",
+                "car_make": vehicle_info.get('brand', 'Honda'),
+                "car_model_year_part": f"{vehicle_info.get('model', 'Civic')}#{vehicle_info.get('year', '2022')}#Oil Filter",
                 "category": "Engine",
                 "location": "Aisle 1, Shelf C",
                 "part_name": "Oil Filter",
@@ -136,8 +151,8 @@ def lambda_handler(event, context):
                     {"S": "P765432"},
                     {"S": "P543219"}
                 ],
-                "car_make": "Ford",
-                "car_model_year_part": "F-150#2020#Air Filter",
+                "car_make": vehicle_info.get('brand', 'Ford'),
+                "car_model_year_part": f"{vehicle_info.get('model', 'F-150')}#{vehicle_info.get('year', '2020')}#Air Filter",
                 "category": "Engine",
                 "location": "Aisle 2, Shelf A",
                 "part_name": "Air Filter",
@@ -150,8 +165,8 @@ def lambda_handler(event, context):
                     {"S": "P654321"},
                     {"S": "P432198"}
                 ],
-                "car_make": "Chevrolet",
-                "car_model_year_part": "Silverado#2019#Spark Plug",
+                "car_make": vehicle_info.get('brand', 'Chevrolet'),
+                "car_model_year_part": f"{vehicle_info.get('model', 'Silverado')}#{vehicle_info.get('year', '2019')}#Spark Plug",
                 "category": "Ignition",
                 "location": "Aisle 4, Shelf D",
                 "part_name": "Spark Plug",
@@ -164,8 +179,8 @@ def lambda_handler(event, context):
                     {"S": "P543210"},
                     {"S": "P321098"}
                 ],
-                "car_make": "Nissan",
-                "car_model_year_part": "Altima#2023#Wiper Blade",
+                "car_make": vehicle_info.get('brand', 'Nissan'),
+                "car_model_year_part": f"{vehicle_info.get('model', 'Altima')}#{vehicle_info.get('year', '2023')}#Wiper Blade",
                 "category": "Exterior",
                 "location": "Aisle 5, Shelf E",
                 "part_name": "Wiper Blade",
@@ -182,6 +197,7 @@ def lambda_handler(event, context):
                 'message': 'Image uploaded successfully',
                 'imageUrl': image_url,
                 'filename': filename,
+                'vehicleInfo': vehicle_info,  # Return the vehicle info in the response
                 'data': dummy_data
             })
         }

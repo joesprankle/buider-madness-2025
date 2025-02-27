@@ -146,6 +146,52 @@
               @change="handleFileChange"
             />
           </div>
+          
+          <!-- Vehicle Information Form -->
+          <div class="mt-6 mb-6 bg-gray-700 p-5 rounded-lg">
+            <h3 class="text-lg font-medium mb-4">Vehicle Information</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Brand Dropdown -->
+              <div>
+                <label for="brand" class="block text-sm font-medium text-gray-300 mb-1">Brand</label>
+                <select 
+                  id="brand" 
+                  v-model="vehicleInfo.brand" 
+                  class="w-full bg-gray-800 border border-gray-600 rounded-md py-2 px-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="" disabled>Select Brand</option>
+                  <option v-for="brand in brandOptions" :key="brand" :value="brand">{{ brand }}</option>
+                </select>
+              </div>
+              
+              <!-- Model Dropdown -->
+              <div>
+                <label for="model" class="block text-sm font-medium text-gray-300 mb-1">Model</label>
+                <select 
+                  id="model" 
+                  v-model="vehicleInfo.model" 
+                  class="w-full bg-gray-800 border border-gray-600 rounded-md py-2 px-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="" disabled>Select Model</option>
+                  <option v-for="model in modelOptions" :key="model" :value="model">{{ model }}</option>
+                </select>
+              </div>
+              
+              <!-- Year Dropdown -->
+              <div>
+                <label for="year" class="block text-sm font-medium text-gray-300 mb-1">Year</label>
+                <select 
+                  id="year" 
+                  v-model="vehicleInfo.year" 
+                  class="w-full bg-gray-800 border border-gray-600 rounded-md py-2 px-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="" disabled>Select Year</option>
+                  <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
           <div class="mt-4 flex flex-col sm:flex-row justify-between sm:items-center">
             <div v-if="uploadStatus" class="mb-3 sm:mb-0">
@@ -266,7 +312,19 @@ export default {
       lambdaFunctionUrl: 'https://voua4ser6udf4xkwhfnqe477va0sbcyd.lambda-url.us-east-1.on.aws/',
       selectedFile: null,
       selectedFileType: '',
-      partsData: null // Will store the returned parts data from API
+      partsData: null, // Will store the returned parts data from API
+      
+      // Vehicle information form data
+      vehicleInfo: {
+        brand: '',
+        model: '',
+        year: ''
+      },
+      
+      // Dropdown options
+      brandOptions: ['Toyota', 'Chevy', 'Ford'],
+      modelOptions: ['Van', 'Truck', 'Passenger Car'],
+      yearOptions: ['2020', '2021', '2022', '2023', '2024', '2025']
     }
   },
   methods: {
@@ -342,17 +400,23 @@ export default {
         const filename = `image-${Date.now()}.${getExtension(this.selectedFileType)}`;
         console.log(`Generated filename: ${filename}`);
         
-        // Prepare payload for Lambda function
+        // Prepare payload for Lambda function with vehicle info
         const payload = {
           image: this.imagePreview, // This includes the base64 data
           filename: filename,
-          contentType: this.selectedFileType
+          contentType: this.selectedFileType,
+          vehicleInfo: {
+            brand: this.vehicleInfo.brand,
+            model: this.vehicleInfo.model,
+            year: this.vehicleInfo.year
+          }
         };
         
         console.log('Sending to Lambda:', {
           url: this.lambdaFunctionUrl,
           contentType: this.selectedFileType,
-          imageSize: this.imagePreview.length
+          imageSize: this.imagePreview.length,
+          vehicleInfo: this.vehicleInfo
         });
         
         // Send to Lambda function
