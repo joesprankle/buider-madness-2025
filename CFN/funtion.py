@@ -100,14 +100,89 @@ def lambda_handler(event, context):
         image_url = f"https://{bucket_name}.s3.amazonaws.com/{filename}"
         logger.info(f"Image URL: {image_url}")
         
-        # Return success response
+        # Generate dummy data payload based on the CSV
+        dummy_data = [
+            {
+                "part_id": "P123456",
+                "alternative_parts": [
+                    {"S": "P987654"},
+                    {"S": "P654321"}
+                ],
+                "car_make": "Toyota",
+                "car_model_year_part": "Camry#2021#Brake Pad",
+                "category": "Brakes",
+                "location": "Aisle 3, Shelf B",
+                "part_name": "Brake Pad",
+                "price": "49.99",
+                "provider": "Bosch"
+            },
+            {
+                "part_id": "P234567",
+                "alternative_parts": [
+                    {"S": "P876543"},
+                    {"S": "P765432"}
+                ],
+                "car_make": "Honda",
+                "car_model_year_part": "Civic#2022#Oil Filter",
+                "category": "Engine",
+                "location": "Aisle 1, Shelf C",
+                "part_name": "Oil Filter",
+                "price": "12.99",
+                "provider": "Fram"
+            },
+            {
+                "part_id": "P345678",
+                "alternative_parts": [
+                    {"S": "P765432"},
+                    {"S": "P543219"}
+                ],
+                "car_make": "Ford",
+                "car_model_year_part": "F-150#2020#Air Filter",
+                "category": "Engine",
+                "location": "Aisle 2, Shelf A",
+                "part_name": "Air Filter",
+                "price": "24.50",
+                "provider": "K&N"
+            },
+            {
+                "part_id": "P456789",
+                "alternative_parts": [
+                    {"S": "P654321"},
+                    {"S": "P432198"}
+                ],
+                "car_make": "Chevrolet",
+                "car_model_year_part": "Silverado#2019#Spark Plug",
+                "category": "Ignition",
+                "location": "Aisle 4, Shelf D",
+                "part_name": "Spark Plug",
+                "price": "8.75",
+                "provider": "NGK"
+            },
+            {
+                "part_id": "P567890",
+                "alternative_parts": [
+                    {"S": "P543210"},
+                    {"S": "P321098"}
+                ],
+                "car_make": "Nissan",
+                "car_model_year_part": "Altima#2023#Wiper Blade",
+                "category": "Exterior",
+                "location": "Aisle 5, Shelf E",
+                "part_name": "Wiper Blade",
+                "price": "19.99",
+                "provider": "Rain-X"
+            }
+        ]
+        
+        # Return success response with dummy data
         return {
             'statusCode': 200,
             'headers': {'Content-Type': 'application/json'},
             'body': json.dumps({
                 'message': 'Image uploaded successfully',
                 'imageUrl': image_url,
-                'filename': filename
+                'filename': filename,
+                'data': dummy_data
             })
         }
         

@@ -104,7 +104,7 @@
       <main class="flex-1 pt-12 pb-8 px-4 md:px-8">
         <h2 class="text-2xl font-bold mb-6">Upload Part</h2>
         
-        <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+        <div class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
           <div class="mb-4">
             <h3 class="text-xl font-semibold mb-2">Upload a new image</h3>
             <p class="text-gray-400">Supported formats: JPG, PNG, GIF (max 5MB)</p>
@@ -178,6 +178,75 @@
             </button>
           </div>
         </div>
+
+        <!-- Parts Grid - Show when data is available -->
+        <div v-if="partsData && partsData.length > 0" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
+          <h3 class="text-xl font-semibold mb-4">Parts Inventory</h3>
+          
+          <!-- Mobile view: Cards -->
+          <div class="md:hidden space-y-4">
+            <div 
+              v-for="part in partsData" 
+              :key="part.part_id"
+              class="bg-gray-700 rounded-lg p-4 hover:bg-gray-600 transition duration-200"
+            >
+              <div class="flex justify-between items-start mb-2">
+                <h4 class="font-medium text-lg">{{ part.part_name }}</h4>
+                <span class="bg-indigo-600 text-white text-xs px-2 py-1 rounded">{{ part.category }}</span>
+              </div>
+              <p class="text-gray-300 text-sm mb-1">ID: {{ part.part_id }}</p>
+              <p class="text-gray-300 text-sm mb-1">Make: {{ part.car_make }}</p>
+              <p class="text-gray-300 text-sm mb-3">{{ part.car_model_year_part.split('#').join(' | ') }}</p>
+              <div class="flex justify-between items-center">
+                <p class="text-green-400 font-bold">${{ part.price }}</p>
+                <p class="text-gray-400 text-sm">{{ part.provider }}</p>
+              </div>
+              <div class="mt-2 text-sm text-gray-400">
+                <p>Location: {{ part.location }}</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Desktop view: Table -->
+          <div class="hidden md:block overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-700">
+              <thead class="bg-gray-700">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Part Name</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Make</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Model/Year</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Category</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Price</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Provider</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Location</th>
+                </tr>
+              </thead>
+              <tbody class="bg-gray-800 divide-y divide-gray-700">
+                <tr 
+                  v-for="part in partsData" 
+                  :key="part.part_id"
+                  class="hover:bg-gray-700 transition duration-150"
+                >
+                  <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{{ part.part_name }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{{ part.part_id }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{{ part.car_make }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                    {{ formatModelYearPart(part.car_model_year_part) }}
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-indigo-600 text-white">
+                      {{ part.category }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-green-400">${{ part.price }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{{ part.provider }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{{ part.location }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -196,7 +265,8 @@ export default {
       // Replace with your actual Lambda function URL from CloudFormation output
       lambdaFunctionUrl: 'https://voua4ser6udf4xkwhfnqe477va0sbcyd.lambda-url.us-east-1.on.aws/',
       selectedFile: null,
-      selectedFileType: ''
+      selectedFileType: '',
+      partsData: null // Will store the returned parts data from API
     }
   },
   methods: {
@@ -246,6 +316,7 @@ export default {
       this.selectedFile = null;
       this.selectedFileType = '';
       this.uploadStatus = null;
+      this.partsData = null; // Clear parts data when clearing image
       this.$refs.fileInput.value = '';
     },
     async uploadImage() {
@@ -253,6 +324,7 @@ export default {
       
       try {
         this.uploadStatus = 'uploading';
+        this.partsData = null; // Reset parts data on new upload
         console.log('Starting upload...');
         
         // Generate a unique filename with extension based on content type
@@ -312,6 +384,15 @@ export default {
         
         this.uploadStatus = 'success';
         this.uploadedImageUrl = result.imageUrl;
+        
+        // Store the parts data from the response
+        if (result.data && Array.isArray(result.data)) {
+          this.partsData = result.data;
+          console.log('Parts data received:', this.partsData);
+        } else {
+          console.warn('No parts data found in response');
+        }
+        
         console.log('Upload completed successfully:', this.uploadedImageUrl);
         
       } catch (error) {
@@ -319,6 +400,13 @@ export default {
         this.uploadStatus = 'error';
         this.errorMessage = error.message || 'Failed to upload image. Please try again.';
       }
+    },
+    formatModelYearPart(modelYearPart) {
+      if (!modelYearPart) return '';
+      
+      // Split by # and format nicely
+      const parts = modelYearPart.split('#');
+      return parts.join(' | ');
     }
   }
 }
