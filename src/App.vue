@@ -371,7 +371,6 @@
   </div>
 </template>
 
-
 <script>
 export default {
   data() {
@@ -519,17 +518,28 @@ export default {
           try {
             // Parse the JSON string in the analysis field
             const analysisData = JSON.parse(data.analysis);
+            console.log('Parsed analysis data:', analysisData);
+            
             if (analysisData.PartName) {
               this.partAnalysis = analysisData.PartName;
-              console.log('Detected part name:', this.partAnalysis);
+              console.log('Successfully extracted part name:', this.partAnalysis);
+              return this.partAnalysis; // Return the part name for direct use
+            } else {
+              console.warn('No PartName found in analysis data');
+              return null;
             }
           } catch (parseError) {
             console.error('Error parsing analysis JSON:', parseError);
             this.partAnalysis = 'Analysis Error';
+            return null;
           }
+        } else {
+          console.warn('No analysis field in response');
+          return null;
         }
       } catch (error) {
         console.error('Error analyzing image:', error);
+        return null;
       }
     },
     
@@ -539,7 +549,6 @@ export default {
       try {
         this.uploadStatus = 'uploading';
         this.partsData = null; // Reset parts data on new upload
-        this.partAnalysis = null; // Reset part analysis on new upload
         console.log('Starting upload...');
         
         // Extract base64 string from data URL
@@ -561,25 +570,30 @@ export default {
         console.log(`Generated filename: ${filename}`);
         
         // Send image to part analysis API before proceeding with main upload
-        await this.analyzeImage(base64Image);
+        // Important: Don't reset partAnalysis here, do it before the API call
+        this.partAnalysis = null; // Reset part analysis on new upload
+        const detectedPartName = await this.analyzeImage(base64Image);
+        console.log('Detected part name to use in request:', detectedPartName);
         
-        // Prepare payload for Lambda function with vehicle info
+        // Prepare payload for Lambda function with vehicle info and part name
         const payload = {
           image: this.imagePreview, // This includes the base64 data
           filename: filename,
           contentType: this.selectedFileType,
-          vehicleInfo: {
-            brand: this.vehicleInfo.brand,
-            model: this.vehicleInfo.model,
-            year: this.vehicleInfo.year
-          }
+          car_make: this.vehicleInfo.brand,
+          car_model: this.vehicleInfo.model,
+          car_year: this.vehicleInfo.year,
+          part_name: detectedPartName || '' // Use the verified part name
         };
         
         console.log('Sending to Lambda:', {
           url: this.lambdaFunctionUrl,
           contentType: this.selectedFileType,
           imageSize: this.imagePreview.length,
-          vehicleInfo: this.vehicleInfo
+          car_make: this.vehicleInfo.brand,
+          car_model: this.vehicleInfo.model,
+          car_year: this.vehicleInfo.year,
+          part_name: detectedPartName // Log the actual value that will be sent
         });
         
         // Send to Lambda function
