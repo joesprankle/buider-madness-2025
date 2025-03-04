@@ -374,7 +374,7 @@ export default {
       errorMessage: '',
       uploadedImageUrl: '',
       // Replace with your actual Lambda function URL from CloudFormation output
-      lambdaFunctionUrl: 'https://voua4ser6udf4xkwhfnqe477va0sbcyd.lambda-url.us-east-1.on.aws/',
+      lambdaFunctionUrl: 'https://ypdhwwcf35ujq3hk4o6z255wo40lnlpl.lambda-url.us-east-1.on.aws/',
       selectedFile: null,
       selectedFileType: '',
       partsData: null, // Will store the returned parts data from API
@@ -392,11 +392,12 @@ export default {
       chatLoading: false,
       
       // Dropdown options
-      brandOptions: ['Toyota', 'Chevy', 'Ford'],
-      modelOptions: ['Van', 'Truck', 'Passenger Car'],
-      yearOptions: ['2020', '2021', '2022', '2023', '2024', '2025']
+      brandOptions: ['BMW','Chrysler', 'Ford', 'Toyota'],
+      modelOptions: ['Passenger Car', 'Truck', 'Van'],
+      yearOptions: ['2022', '2023', '2024', '2025']
     }
   },
+
   methods: {
     // Reset everything and start over
     resetForm() {

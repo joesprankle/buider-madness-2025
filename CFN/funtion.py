@@ -78,7 +78,7 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Invalid base64 encoding'})
             }
         
-        # Upload to S3 
+        # Upload to S3 WITHOUT ACL parameter
         try:
             # Add vehicle info as metadata if provided
             metadata = {}
