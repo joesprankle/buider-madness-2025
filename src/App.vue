@@ -233,6 +233,14 @@
           </div>
         </div>
         
+        <!-- Part Analysis Result -->
+        <div v-if="partAnalysis" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
+          <h3 class="text-xl font-semibold mb-4">Part Analysis</h3>
+          <div class="bg-gray-700 p-4 rounded">
+            <p class="text-green-400">Detected Part: <span class="text-white font-semibold">{{ partAnalysis }}</span></p>
+          </div>
+        </div>
+        
         <!-- Upload Section - Only show if no parts data or if explicitly showing upload form -->
         <div v-if="!partsData || partsData.length === 0" class="space-y-8">
           <h2 class="text-2xl font-bold mb-6">Upload Part</h2>
@@ -363,6 +371,7 @@
   </div>
 </template>
 
+
 <script>
 export default {
   data() {
@@ -375,9 +384,12 @@ export default {
       uploadedImageUrl: '',
       // Replace with your actual Lambda function URL from CloudFormation output
       lambdaFunctionUrl: 'https://ypdhwwcf35ujq3hk4o6z255wo40lnlpl.lambda-url.us-east-1.on.aws/',
+      // New Lambda function URL for part analysis
+      partAnalysisUrl: 'https://e2l7taspcmhhppjmufz6lvogrm0rbgvx.lambda-url.us-east-1.on.aws/',
       selectedFile: null,
       selectedFileType: '',
       partsData: null, // Will store the returned parts data from API
+      partAnalysis: null, // Will store the part name from the analysis
       
       // Vehicle information form data
       vehicleInfo: {
@@ -402,23 +414,24 @@ export default {
     // Reset everything and start over
     resetForm() {
       this.imagePreview = null;
-  this.selectedFile = null;
-  this.selectedFileType = '';
-  this.uploadStatus = null;
-  this.partsData = null;
-  this.chatMessages = [];
-  this.chatInput = '';
-  this.vehicleInfo = {
-    brand: '',
-    model: '',
-    year: ''
-  };
-  
-  // Add this check to prevent the error
-  if (this.$refs.fileInput) {
-    this.$refs.fileInput.value = '';
-  }
-},
+      this.selectedFile = null;
+      this.selectedFileType = '';
+      this.uploadStatus = null;
+      this.partsData = null;
+      this.partAnalysis = null;
+      this.chatMessages = [];
+      this.chatInput = '';
+      this.vehicleInfo = {
+        brand: '',
+        model: '',
+        year: ''
+      };
+      
+      // Add this check to prevent the error
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = '';
+      }
+    },
     
     // File upload methods
     triggerFileInput() {
@@ -468,15 +481,69 @@ export default {
       this.selectedFileType = '';
       this.uploadStatus = null;
       this.partsData = null; // Clear parts data when clearing image
+      this.partAnalysis = null; // Clear part analysis when clearing image
       this.$refs.fileInput.value = '';
     },
+    
+    // Extract base64 string from Data URL
+    getBase64FromDataUrl(dataUrl) {
+      // Format is like: data:image/jpeg;base64,/9j/4AAQSkZJRgAB...
+      return dataUrl.split(',')[1];
+    },
+    
+    // Send image to part analysis API
+    async analyzeImage(base64Image) {
+      try {
+        console.log('Sending image to part analysis API...');
+        
+        const response = await fetch(this.partAnalysisUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            image: base64Image
+          })
+        });
+        
+        console.log('Part analysis API response status:', response.status);
+        
+        if (!response.ok) {
+          throw new Error('Failed to analyze part');
+        }
+        
+        const data = await response.json();
+        console.log('Part analysis API response:', data);
+        
+        if (data && data.analysis) {
+          try {
+            // Parse the JSON string in the analysis field
+            const analysisData = JSON.parse(data.analysis);
+            if (analysisData.PartName) {
+              this.partAnalysis = analysisData.PartName;
+              console.log('Detected part name:', this.partAnalysis);
+            }
+          } catch (parseError) {
+            console.error('Error parsing analysis JSON:', parseError);
+            this.partAnalysis = 'Analysis Error';
+          }
+        }
+      } catch (error) {
+        console.error('Error analyzing image:', error);
+      }
+    },
+    
     async uploadImage() {
       if (!this.imagePreview) return;
       
       try {
         this.uploadStatus = 'uploading';
         this.partsData = null; // Reset parts data on new upload
+        this.partAnalysis = null; // Reset part analysis on new upload
         console.log('Starting upload...');
+        
+        // Extract base64 string from data URL
+        const base64Image = this.getBase64FromDataUrl(this.imagePreview);
         
         // Generate a unique filename with extension based on content type
         const getExtension = (mimeType) => {
@@ -492,6 +559,9 @@ export default {
         
         const filename = `image-${Date.now()}.${getExtension(this.selectedFileType)}`;
         console.log(`Generated filename: ${filename}`);
+        
+        // Send image to part analysis API before proceeding with main upload
+        await this.analyzeImage(base64Image);
         
         // Prepare payload for Lambda function with vehicle info
         const payload = {
@@ -558,6 +628,7 @@ export default {
         this.errorMessage = error.message || 'Failed to upload image. Please try again.';
       }
     },
+    
     // Format the model year part string
     formatModelYearPart(modelYearPart) {
       if (!modelYearPart) return '';
@@ -609,6 +680,10 @@ export default {
       } else if (messageLower.includes('brand') || messageLower.includes('make')) {
         const makes = [...new Set(this.partsData.map(p => p.car_make))];
         response = 'These parts are compatible with: ' + makes.join(', ');
+      } else if (messageLower.includes('analysis') || messageLower.includes('detected')) {
+        response = this.partAnalysis 
+          ? `The detected part is: ${this.partAnalysis}` 
+          : 'No part analysis is available for this image.';
       } else {
         response = 'I can provide information about the parts in the inventory. You can ask about prices, locations, compatibility, or specific part details.';
       }
