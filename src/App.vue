@@ -29,7 +29,7 @@
         <div>
           <button 
             @click="resetForm" 
-            v-if="partsData && partsData.length > 0"
+            v-if="alternativeParts && alternativeParts.length > 0"
             class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm transition duration-200"
           >
             New Search
@@ -105,14 +105,14 @@
 
       <!-- Main Content Area -->
       <main class="flex-1 pt-12 pb-8 px-4 md:px-8">
-        <!-- Parts Grid - Show when data is available -->
-        <div v-if="partsData && partsData.length > 0" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
-          <h3 class="text-xl font-semibold mb-4">Parts Inventory</h3>
+        <!-- Parts Grid - Show when alternative parts are available -->
+        <div v-if="alternativeParts && alternativeParts.length > 0" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
+          <h3 class="text-xl font-semibold mb-4">Available Parts</h3>
           
           <!-- Mobile view: Cards -->
           <div class="md:hidden space-y-4">
             <div 
-              v-for="part in partsData" 
+              v-for="part in alternativeParts" 
               :key="part.part_id"
               class="bg-gray-700 rounded-lg p-4 hover:bg-gray-600 transition duration-200"
             >
@@ -122,7 +122,8 @@
               </div>
               <p class="text-gray-300 text-sm mb-1">ID: {{ part.part_id }}</p>
               <p class="text-gray-300 text-sm mb-1">Make: {{ part.car_make }}</p>
-              <p class="text-gray-300 text-sm mb-3">{{ part.car_model_year_part.split('#').join(' | ') }}</p>
+              <p class="text-gray-300 text-sm mb-1">Model: {{ part.car_model }}</p>
+              <p class="text-gray-300 text-sm mb-3">Year: {{ part.year }}</p>
               <div class="flex justify-between items-center">
                 <p class="text-green-400 font-bold">${{ part.price }}</p>
                 <p class="text-gray-400 text-sm">{{ part.provider }}</p>
@@ -141,7 +142,8 @@
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Part Name</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Make</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Model/Year</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Model</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Year</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Category</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Price</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Provider</th>
@@ -150,16 +152,15 @@
               </thead>
               <tbody class="bg-gray-800 divide-y divide-gray-700">
                 <tr 
-                  v-for="part in partsData" 
+                  v-for="part in alternativeParts" 
                   :key="part.part_id"
                   class="hover:bg-gray-700 transition duration-150"
                 >
                   <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{{ part.part_name }}</td>
                   <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{{ part.part_id }}</td>
                   <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{{ part.car_make }}</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
-                    {{ formatModelYearPart(part.car_model_year_part) }}
-                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{{ part.car_model }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{{ part.year }}</td>
                   <td class="px-4 py-3 whitespace-nowrap">
                     <span class="px-2 py-1 text-xs font-medium rounded-full bg-indigo-600 text-white">
                       {{ part.category }}
@@ -174,14 +175,14 @@
           </div>
         </div>
 
-        <!-- Chat interface - only show when parts data is available -->
-        <div v-if="partsData && partsData.length > 0" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
+        <!-- Chat interface - only show when alternative parts data is available -->
+        <div v-if="alternativeParts && alternativeParts.length > 0" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
           <h3 class="text-xl font-semibold mb-4">Ask about these parts</h3>
           
           <!-- Chat messages -->
           <div class="bg-gray-700 rounded-lg p-4 mb-4 h-64 overflow-y-auto">
             <div v-if="chatMessages.length === 0" class="text-gray-400 text-center py-10">
-              Ask a question about the parts in the inventory
+              Ask a question about the alternative parts
             </div>
             
             <div v-for="(message, index) in chatMessages" :key="index" class="mb-4">
@@ -241,8 +242,8 @@
           </div>
         </div>
         
-        <!-- Upload Section - Only show if no parts data or if explicitly showing upload form -->
-        <div v-if="!partsData || partsData.length === 0" class="space-y-8">
+        <!-- Upload Section - Only show if no alternative parts or if explicitly showing upload form -->
+        <div v-if="!alternativeParts || alternativeParts.length === 0" class="space-y-8">
           <h2 class="text-2xl font-bold mb-6">Upload Part</h2>
           
           <div class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
@@ -382,12 +383,13 @@ export default {
       errorMessage: '',
       uploadedImageUrl: '',
       // Replace with your actual Lambda function URL from CloudFormation output
-      lambdaFunctionUrl: 'https://ypdhwwcf35ujq3hk4o6z255wo40lnlpl.lambda-url.us-east-1.on.aws/',
+      lambdaFunctionUrl: 'https://eeudny3xbzliccpywt7tzpjrme0lobxr.lambda-url.us-east-1.on.aws/',
       // New Lambda function URL for part analysis
       partAnalysisUrl: 'https://e2l7taspcmhhppjmufz6lvogrm0rbgvx.lambda-url.us-east-1.on.aws/',
       selectedFile: null,
       selectedFileType: '',
-      partsData: null, // Will store the returned parts data from API
+      mainPart: null, // Store the main part data
+      alternativeParts: null, // Store the alternative parts data
       partAnalysis: null, // Will store the part name from the analysis
       
       // Vehicle information form data
@@ -404,7 +406,7 @@ export default {
       
       // Dropdown options
       brandOptions: ['BMW','Chrysler', 'Ford', 'Toyota'],
-      modelOptions: ['Passenger Car', 'Truck', 'Van'],
+      modelOptions: ['300', '530i', 'Camry', 'F150'],
       yearOptions: ['2022', '2023', '2024', '2025']
     }
   },
@@ -416,7 +418,8 @@ export default {
       this.selectedFile = null;
       this.selectedFileType = '';
       this.uploadStatus = null;
-      this.partsData = null;
+      this.mainPart = null;
+      this.alternativeParts = null;
       this.partAnalysis = null;
       this.chatMessages = [];
       this.chatInput = '';
@@ -479,7 +482,8 @@ export default {
       this.selectedFile = null;
       this.selectedFileType = '';
       this.uploadStatus = null;
-      this.partsData = null; // Clear parts data when clearing image
+      this.mainPart = null; // Clear main part data when clearing image
+      this.alternativeParts = null; // Clear alternative parts data when clearing image
       this.partAnalysis = null; // Clear part analysis when clearing image
       this.$refs.fileInput.value = '';
     },
@@ -520,12 +524,17 @@ export default {
             const analysisData = JSON.parse(data.analysis);
             console.log('Parsed analysis data:', analysisData);
             
-            if (analysisData.PartName) {
+            // Check for part_name first, then fallback to PartName
+            if (analysisData.part_name) {
+              this.partAnalysis = analysisData.part_name;
+              console.log('Successfully extracted part name (part_name):', this.partAnalysis);
+              return this.partAnalysis;
+            } else if (analysisData.PartName) {
               this.partAnalysis = analysisData.PartName;
-              console.log('Successfully extracted part name:', this.partAnalysis);
-              return this.partAnalysis; // Return the part name for direct use
+              console.log('Successfully extracted part name (PartName):', this.partAnalysis);
+              return this.partAnalysis;
             } else {
-              console.warn('No PartName found in analysis data');
+              console.warn('No part name found in analysis data');
               return null;
             }
           } catch (parseError) {
@@ -548,7 +557,8 @@ export default {
       
       try {
         this.uploadStatus = 'uploading';
-        this.partsData = null; // Reset parts data on new upload
+        this.mainPart = null; // Reset main part data on new upload
+        this.alternativeParts = null; // Reset alternative parts data on new upload
         console.log('Starting upload...');
         
         // Extract base64 string from data URL
@@ -626,12 +636,19 @@ export default {
         this.uploadStatus = 'success';
         this.uploadedImageUrl = result.imageUrl;
         
-        // Store the parts data from the response
-        if (result.data && Array.isArray(result.data)) {
-          this.partsData = result.data;
-          console.log('Parts data received:', this.partsData);
+        // Store the parts data from the new response format
+        if (result.main_part) {
+          this.mainPart = result.main_part;
+          console.log('Main part data received:', this.mainPart);
         } else {
-          console.warn('No parts data found in response');
+          console.warn('No main part data found in response');
+        }
+        
+        if (result.alternative_parts && Array.isArray(result.alternative_parts)) {
+          this.alternativeParts = result.alternative_parts;
+          console.log('Alternative parts data received:', this.alternativeParts);
+        } else {
+          console.warn('No alternative parts data found in response');
         }
         
         console.log('Upload completed successfully:', this.uploadedImageUrl);
@@ -641,15 +658,6 @@ export default {
         this.uploadStatus = 'error';
         this.errorMessage = error.message || 'Failed to upload image. Please try again.';
       }
-    },
-    
-    // Format the model year part string
-    formatModelYearPart(modelYearPart) {
-      if (!modelYearPart) return '';
-      
-      // Split by # and format nicely
-      const parts = modelYearPart.split('#');
-      return parts.join(' | ');
     },
     
     // Chat functionality
@@ -684,22 +692,34 @@ export default {
       const messageLower = message.toLowerCase();
       
       if (messageLower.includes('price') || messageLower.includes('cost')) {
-        response = 'The prices for these parts range from $' + 
-          Math.min(...this.partsData.map(p => p.price)) + 
-          ' to $' + Math.max(...this.partsData.map(p => p.price)) + 
-          '. Is there a specific part you\'re interested in?';
+        if (this.alternativeParts && this.alternativeParts.length > 0) {
+          response = 'The prices for these alternative parts range from $' + 
+            Math.min(...this.alternativeParts.map(p => parseFloat(p.price))) + 
+            ' to $' + Math.max(...this.alternativeParts.map(p => parseFloat(p.price))) + 
+            '. Is there a specific part you\'re interested in?';
+        } else {
+          response = 'I don\'t have any price information for alternative parts.';
+        }
       } else if (messageLower.includes('location') || messageLower.includes('where')) {
-        const locations = [...new Set(this.partsData.map(p => p.location))];
-        response = 'These parts are available at: ' + locations.join(', ');
+        if (this.alternativeParts && this.alternativeParts.length > 0) {
+          const locations = [...new Set(this.alternativeParts.map(p => p.location))];
+          response = 'These alternative parts are available at: ' + locations.join(', ');
+        } else {
+          response = 'I don\'t have any location information for alternative parts.';
+        }
       } else if (messageLower.includes('brand') || messageLower.includes('make')) {
-        const makes = [...new Set(this.partsData.map(p => p.car_make))];
-        response = 'These parts are compatible with: ' + makes.join(', ');
+        if (this.alternativeParts && this.alternativeParts.length > 0) {
+          const makes = [...new Set(this.alternativeParts.map(p => p.car_make))];
+          response = 'These alternative parts are compatible with: ' + makes.join(', ');
+        } else {
+          response = 'I don\'t have any manufacturer information for alternative parts.';
+        }
       } else if (messageLower.includes('analysis') || messageLower.includes('detected')) {
         response = this.partAnalysis 
           ? `The detected part is: ${this.partAnalysis}` 
           : 'No part analysis is available for this image.';
       } else {
-        response = 'I can provide information about the parts in the inventory. You can ask about prices, locations, compatibility, or specific part details.';
+        response = 'I can provide information about the alternative parts in the inventory. You can ask about prices, locations, compatibility, or specific part details.';
       }
       
       // Add response to chat
