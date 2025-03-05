@@ -105,6 +105,13 @@
 
       <!-- Main Content Area -->
       <main class="flex-1 pt-12 pb-8 px-4 md:px-8">
+                <!-- Part Analysis Result -->
+                <div v-if="partAnalysis" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
+          <h3 class="text-xl font-semibold mb-4">Part Analysis</h3>
+          <div class="bg-gray-700 p-4 rounded">
+            <p class="text-green-400">Detected Part: <span class="text-white font-semibold">{{ partAnalysis }}</span></p>
+          </div>
+        </div>
         <!-- Parts Grid - Show when alternative parts are available -->
         <div v-if="alternativeParts && alternativeParts.length > 0" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
           <h3 class="text-xl font-semibold mb-4">Available Parts</h3>
@@ -234,13 +241,7 @@
           </div>
         </div>
         
-        <!-- Part Analysis Result -->
-        <div v-if="partAnalysis" class="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
-          <h3 class="text-xl font-semibold mb-4">Part Analysis</h3>
-          <div class="bg-gray-700 p-4 rounded">
-            <p class="text-green-400">Detected Part: <span class="text-white font-semibold">{{ partAnalysis }}</span></p>
-          </div>
-        </div>
+
         
         <!-- Upload Section - Only show if no alternative parts or if explicitly showing upload form -->
         <div v-if="!alternativeParts || alternativeParts.length === 0" class="space-y-8">
@@ -386,6 +387,8 @@ export default {
       lambdaFunctionUrl: 'https://eeudny3xbzliccpywt7tzpjrme0lobxr.lambda-url.us-east-1.on.aws/',
       // New Lambda function URL for part analysis
       partAnalysisUrl: 'https://e2l7taspcmhhppjmufz6lvogrm0rbgvx.lambda-url.us-east-1.on.aws/',
+      // New Lambda function URL for chat functionality
+      chatLambdaUrl: 'https://n3cxcryb5yrmpaca6hysvs4d440bjyfh.lambda-url.us-east-1.on.aws/', // Replace with your actual chat Lambda URL
       selectedFile: null,
       selectedFileType: '',
       mainPart: null, // Store the main part data
@@ -593,7 +596,7 @@ export default {
           car_make: this.vehicleInfo.brand,
           car_model: this.vehicleInfo.model,
           car_year: this.vehicleInfo.year,
-          part_name: detectedPartName || '' // Use the verified part name
+          category: detectedPartName || '' // Use the verified part name
         };
         
         console.log('Sending to Lambda:', {
@@ -661,7 +664,7 @@ export default {
     },
     
     // Chat functionality
-    sendChatMessage() {
+    async sendChatMessage() {
       if (!this.chatInput.trim() || this.chatLoading) return;
       
       // Add user message to chat
@@ -677,60 +680,64 @@ export default {
       // Set loading state
       this.chatLoading = true;
       
-      // Simulate API call delay
-      setTimeout(() => {
-        this.handleChatResponse(message);
-      }, 1000);
+      try {
+        await this.handleChatResponse(message);
+      } catch (error) {
+        console.error('Chat API error:', error);
+        this.chatMessages.push({
+          sender: 'system',
+          text: 'Sorry, I encountered an error processing your question. Please try again.'
+        });
+        this.chatLoading = false;
+      }
     },
     
-    // Handle chat response (will be replaced with actual API integration)
-    handleChatResponse(message) {
-      // This is a placeholder - replace with actual API call to your chat backend
-      let response = '';
+    async handleChatResponse(message) {
+      // Extract part numbers from alternativeParts
+      const relevantParts = this.alternativeParts 
+        ? this.alternativeParts.map(part => ({ partNumber: part.part_id }))
+        : [];
       
-      // Simple response simulation based on keywords
-      const messageLower = message.toLowerCase();
+      // Prepare payload for Lambda function
+      const payload = {
+        relevant_parts: relevantParts,
+        question: {
+          text: message
+        }
+      };
       
-      if (messageLower.includes('price') || messageLower.includes('cost')) {
-        if (this.alternativeParts && this.alternativeParts.length > 0) {
-          response = 'The prices for these alternative parts range from $' + 
-            Math.min(...this.alternativeParts.map(p => parseFloat(p.price))) + 
-            ' to $' + Math.max(...this.alternativeParts.map(p => parseFloat(p.price))) + 
-            '. Is there a specific part you\'re interested in?';
-        } else {
-          response = 'I don\'t have any price information for alternative parts.';
-        }
-      } else if (messageLower.includes('location') || messageLower.includes('where')) {
-        if (this.alternativeParts && this.alternativeParts.length > 0) {
-          const locations = [...new Set(this.alternativeParts.map(p => p.location))];
-          response = 'These alternative parts are available at: ' + locations.join(', ');
-        } else {
-          response = 'I don\'t have any location information for alternative parts.';
-        }
-      } else if (messageLower.includes('brand') || messageLower.includes('make')) {
-        if (this.alternativeParts && this.alternativeParts.length > 0) {
-          const makes = [...new Set(this.alternativeParts.map(p => p.car_make))];
-          response = 'These alternative parts are compatible with: ' + makes.join(', ');
-        } else {
-          response = 'I don\'t have any manufacturer information for alternative parts.';
-        }
-      } else if (messageLower.includes('analysis') || messageLower.includes('detected')) {
-        response = this.partAnalysis 
-          ? `The detected part is: ${this.partAnalysis}` 
-          : 'No part analysis is available for this image.';
-      } else {
-        response = 'I can provide information about the alternative parts in the inventory. You can ask about prices, locations, compatibility, or specific part details.';
+      console.log('Sending chat request to Lambda:', payload);
+      
+      // Send to Lambda function
+      const response = await fetch(this.chatLambdaUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('Chat response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Chat API error response:', errorText);
+        throw new Error('Failed to get response from chat service');
       }
+      
+      // Parse the response
+      const result = await response.json();
+      console.log('Chat API response:', result);
       
       // Add response to chat
       this.chatMessages.push({
         sender: 'system',
-        text: response
+        text: result.response || 'No response received from the service.'
       });
       
       // End loading state
       this.chatLoading = false;
-   
+      
       // Scroll to bottom of chat
       this.$nextTick(() => {
         const chatContainer = document.querySelector('.overflow-y-auto');
