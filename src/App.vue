@@ -732,7 +732,7 @@ export default {
       // Add response to chat
       this.chatMessages.push({
         sender: 'system',
-        text: result.response || 'No response received from the service.'
+        text: result.answer || 'No response received from the service.'
       });
       
       // End loading state
